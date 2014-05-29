@@ -7,9 +7,9 @@ python:
   - "2.7"
 install:
   - pip install -r requirements.txt --use-mirrors
-  - pip install . --use-mirrors
+  - pip install -e . --use-mirrors
   - pip install coveralls
-script: coverage run runtests.py
+script: coverage run runtests.py --omit="*/site-packages/*"
 after_success:
   - coverage report -m
   - coveralls
