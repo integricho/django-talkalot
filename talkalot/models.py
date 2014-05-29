@@ -275,23 +275,3 @@ class Message(models.Model):
         :param recipients: List of usernames who will receive the message
         """
         return cls.__send_to_users(body, sender, recipients)
-
-
-# def cached_inbox_count_for(user):
-#     """
-#     returns the number of unread messages for the given user but does not
-#     mark them seen
-#     """
-#     count = cache.get(INBOX_COUNT_CACHE % user.pk)
-#     if count:
-#         return count
-#     else:
-#         count = inbox_count_for(user)
-#         cache.set(INBOX_COUNT_CACHE % user.pk,
-#             count,
-#             INBOX_COUNT_CACHE_TIME)
-#         return count
-
-
-# def inbox_count_for(user):
-#     return Participant.objects.inbox_for(user, read=False).count()
