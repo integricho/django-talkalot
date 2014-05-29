@@ -11,5 +11,5 @@ install:
   - pip install coveralls
 script: coverage run runtests.py --omit="*/site-packages/*"
 after_success:
-  - coverage report -m
+  - coverage report -m --omit="*/site-packages/*"
   - coveralls
