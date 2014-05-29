@@ -1,0 +1,4 @@
+[run]
+source = talkalot
+branch = True
+omit = talkalot/*tests*
