@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -7,6 +9,7 @@ try:
 except ImportError:
     from django.db.transaction import commit_on_success as atomic
 
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.timezone import now
 
 from .exceptions import MessagingPermissionDenied
@@ -18,6 +21,7 @@ User = get_user_model()
 PRIVATE_CONVERSATION_MEMBER_COUNT = 2
 
 
+@python_2_unicode_compatible
 class Participation(models.Model):
     conversation = models.ForeignKey('Conversation',
                                      related_name='participations')
@@ -36,9 +40,8 @@ class Participation(models.Model):
         ordering = ['-read_at', 'conversation']
         unique_together = ('conversation', 'user')
 
-    def __unicode__(self):
-        return u"{0} - {1}".format(self.user.username,
-                                   unicode(self.conversation))
+    def __str__(self):
+        return "{0} - {1}".format(self.user.username, self.conversation)
 
     def read_conversation(self):
         """Gets all the messages from the current conversation and marks it
@@ -66,6 +69,7 @@ class Participation(models.Model):
         self.save()
 
 
+@python_2_unicode_compatible
 class Conversation(models.Model):
     latest_message = models.ForeignKey('Message',
                                        related_name='conversation_of_latest',
@@ -79,8 +83,8 @@ class Conversation(models.Model):
     class Meta:
         ordering = ['latest_message']
 
-    def __unicode__(self):
-        return u"{0} - {1}".format(self.pk, unicode(self.latest_message))
+    def __str__(self):
+        return "{0} - {1}".format(self.pk, self.latest_message)
 
     @property
     def active_participations(self):
@@ -145,6 +149,7 @@ class Conversation(models.Model):
         return conversation
 
 
+@python_2_unicode_compatible
 class Message(models.Model):
     body = models.TextField()
     parent = models.ForeignKey('self',
@@ -159,8 +164,8 @@ class Message(models.Model):
     class Meta:
         ordering = ['-sent_at']
 
-    def __unicode__(self):
-        return u"{0} - {1}".format(self.sender.username, self.sent_at)
+    def __str__(self):
+        return "{0} - {1}".format(self.sender.username, self.sent_at)
 
     @classmethod
     def __send_to_conversation(cls, body, sender, conversation,
@@ -174,7 +179,7 @@ class Message(models.Model):
         # without this, arbitary users could send messages into conversations
         # which they're not even part of
         if not conversation.has_participant(sender):
-            msg = u"{0} not participating".format(sender.username)
+            msg = "{0} not participating".format(sender.username)
             raise MessagingPermissionDenied(msg)
 
         if new_participants and conversation.is_private:

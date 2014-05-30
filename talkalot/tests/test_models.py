@@ -138,6 +138,34 @@ class MessageTestCase(BaseMessagingTestCase):
                                  conversation_participants)
 
     @setup_users
+    def test_string_representations(self):
+        """Tests the __str__ methods of all models"""
+        body = 'group message'
+        sender = self.users['friend0']
+        recipients = ('friend1')
+        message = Message.send_to_users(body, sender, recipients)
+        participation = (message.conversation.participations
+                                             .get(user=self.users['friend0']))
+
+        # {{ sender_username }} - {{ sent_at }}
+        self.assertEqual(
+            str(message),
+            "{0} - {1}".format(message.sender.username, message.sent_at)
+        )
+        # {{ primary_key }} - {{ str(latest_message) }}
+        self.assertEqual(
+            str(message.conversation),
+            "{0} - {1}".format(message.conversation.pk,
+                               message.conversation.latest_message)
+        )
+        # {{ participant_username }} - {{ str(conversation) }}
+        self.assertEqual(
+            str(participation),
+            "{0} - {1}".format(participation.user.username,
+                               participation.conversation)
+        )
+
+    @setup_users
     def test_send_to_users(self):
         """Starts a new group conversation from scratch, and replies to it,
         always using only the usernames of the recipients"""
