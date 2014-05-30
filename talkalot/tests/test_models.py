@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-from django.contrib.auth import get_user_model
+try:
+    # Django 1.5+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+except ImportError:
+    # Django <= 1.4
+    from django.contrib.auth.models import User
 from django.test import TestCase, TransactionTestCase
 
 from ..exceptions import MessagingPermissionDenied
 from ..models import Conversation, Participation, Message
-
-
-User = get_user_model()
 
 
 def setup_users(func):
