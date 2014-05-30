@@ -1,5 +1,11 @@
 import sys
 
+try:
+    # Django 1.7+
+    from django import setup as django_setup
+except ImportError:
+    django_setup = None
+
 from django.conf import settings
 from django.core.management import call_command
 
@@ -34,4 +40,7 @@ def runtests():
 
 
 if __name__ == '__main__':
+    if django_setup:
+        django_setup()
+
     runtests()
