@@ -2,10 +2,12 @@
 try:
     # Django 1.5+
     from django.contrib.auth import get_user_model
-    User = get_user_model()
 except ImportError:
-    # Django <= 1.4
-    from django.contrib.auth.models import User
+    # Django < 1.5
+    def get_user_model():
+        from django.contrib.auth.models import User
+        return User
+
 from django.test import TestCase, TransactionTestCase
 
 from ..exceptions import MessagingPermissionDenied
@@ -15,6 +17,7 @@ from ..models import Conversation, Participation, Message
 def setup_users(func):
     def _setup_users(self, *args, **kwargs):
         self.users = dict()
+        User = get_user_model()
 
         for prefix in ('friend', 'foe'):
             for i in range(5):
