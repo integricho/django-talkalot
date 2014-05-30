@@ -16,3 +16,6 @@ build
 
 # Coverage report
 .coverage
+
+# Tox generated files
+.tox
