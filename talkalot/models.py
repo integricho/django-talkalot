@@ -2,7 +2,14 @@
 from __future__ import unicode_literals
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+try:
+    # Django 1.5+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+except ImportError:
+    # Django <= 1.4
+    from django.contrib.auth.models import User
+
 from django.db import models
 try:
     from django.db.transaction import atomic
@@ -15,8 +22,6 @@ from django.utils.timezone import now
 from .exceptions import MessagingPermissionDenied
 from .managers import ConversationManager, ParticipationManager
 
-
-User = get_user_model()
 
 PRIVATE_CONVERSATION_MEMBER_COUNT = 2
 
