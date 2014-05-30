@@ -1,4 +1,4 @@
-# Talkalot [![Build Status](https://travis-ci.org/integricho/talkalot.svg?branch=master)](https://travis-ci.org/integricho/talkalot.svg?branch=master) [![Coverage Status](https://img.shields.io/coveralls/integricho/talkalot.svg)](https://coveralls.io/r/integricho/talkalot)
+# Talkalot [![Build Status](https://travis-ci.org/integricho/django-talkalot.svg?branch=master)](https://travis-ci.org/integricho/talkalot.svg?branch=master) [![Coverage Status](https://img.shields.io/coveralls/integricho/django-talkalot.svg)](https://coveralls.io/r/integricho/talkalot)
 
 #### A django application to serve as a messaging backend.
 
