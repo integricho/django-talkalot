@@ -23,6 +23,7 @@ from .exceptions import MessagingPermissionDenied
 from .managers import ConversationManager, ParticipationManager
 
 
+AUTH_USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 PRIVATE_CONVERSATION_MEMBER_COUNT = 2
 
 
@@ -30,8 +31,7 @@ PRIVATE_CONVERSATION_MEMBER_COUNT = 2
 class Participation(models.Model):
     conversation = models.ForeignKey('Conversation',
                                      related_name='participations')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             related_name='participations')
+    user = models.ForeignKey(AUTH_USER_MODEL, related_name='participations')
     # messages in conversation seen at
     read_at = models.DateTimeField(null=True, blank=True, db_index=True)
     # replied to conversation at
@@ -80,7 +80,7 @@ class Conversation(models.Model):
                                        related_name='conversation_of_latest',
                                        null=True,
                                        blank=True)
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL,
+    creator = models.ForeignKey(AUTH_USER_MODEL,
                                 related_name='created_conversation')
 
     objects = ConversationManager()
@@ -161,8 +161,7 @@ class Message(models.Model):
                                related_name='next_messages',
                                blank=True,
                                null=True)
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL,
-                               related_name='sent_messages')
+    sender = models.ForeignKey(AUTH_USER_MODEL, related_name='sent_messages')
     sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
     conversation = models.ForeignKey('Conversation', related_name='messages')
 
