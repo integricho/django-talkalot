@@ -6,14 +6,14 @@ from django.db.models import Count
 class ConversationManager(models.Manager):
 
     def for_participants(self, participants):
-        conversations = (self.all()
-                             .annotate(participants=Count('participations')))
+        annotation = dict(participant_count=Count('participations'))
+        conversations = self.all().annotate(**annotation)
 
-        for username in participants:
-            condition = dict(participations__user__username=username)
+        for user in participants:
+            condition = dict(participations__user=user)
             conversations = conversations.filter(**condition)
 
-        return conversations.filter(participants=len(participants))
+        return conversations.filter(participant_count=len(participants))
 
 
 class ParticipationManager(models.Manager):

@@ -49,6 +49,10 @@ class Participation(models.Model):
     def __str__(self):
         return "{0} - {1}".format(self.user.username, self.conversation)
 
+    @property
+    def is_deleted(self):
+        return self.deleted_at is not None
+
     def read_conversation(self):
         """Gets all the messages from the current conversation and marks it
         read by the participant who requested it.
@@ -101,25 +105,23 @@ class Conversation(models.Model):
     def add_participants(self, participants):
         """Adds participants to an existing conversation.
 
-        :param participants: A list of usernames, who will be added to the
-                             conversation as participants.
-        """
-        if not participants:
-            # don't bother with querying if it's not worth it
-            return
-
-        User = get_user_model()
-        users = User.objects.filter(username__in=participants)
-
-        for participant in users:
+        :param participants: A QuerySet or list of user objects, who will be
+                             added to the conversation as participants."""
+        for user in participants:
             participation, created = Participation.objects.get_or_create(
                 conversation=self,
-                user=participant
+                user=user
             )
-            if not created:
-                # participation already exists, so the user most likely left
-                # the conversation, but someone re-added him/her
+            if not created and participation.is_deleted:
+                # participation already exists and it was marked as deleted, so
+                # the user most likely left the conversation, but someone
+                # re-added him/her
                 participation.reinstate()
+
+    @property
+    def participants(self):
+        """Returns a list of user objects participating in this conversation"""
+        return [p.user for p in self.active_participations.all()]
 
     @property
     def participant_names(self):
@@ -148,8 +150,8 @@ class Conversation(models.Model):
         """Starts a new conversation between the specified participants.
 
         :param creator: A User object (request.user probably)
-        :param participants: A list of usernames, who will be added to the
-                             conversation as participants.
+        :param participants: A QuerySet or list of user objects, who will be
+                             added to the conversation as participants.
         """
         conversation = cls.objects.create(creator=creator)
         conversation.add_participants(participants)
@@ -193,7 +195,7 @@ class Message(models.Model):
             # participants, instead a new conversation has to be started which
             # will include all the participants, but not the history of the
             # private conversation
-            recipients = conversation.participant_names + new_participants
+            recipients = conversation.participants + new_participants
             return cls.__send_to_users(body, sender, recipients)
 
         # this was already a group conversation, so just add the new
@@ -236,7 +238,7 @@ class Message(models.Model):
         """Internally used by both send_to_users and __send_to_conversation
         methods. Refactored as a separate method to avoid nesting the atomic
         decorator when __send_to_conversation needs to call __send_to_users."""
-        participants = list(recipients) + [sender.username]
+        participants = list(recipients) + [sender]
 
         conversations = Conversation.objects.for_participants(participants)
 
@@ -264,9 +266,9 @@ class Message(models.Model):
         :param body: Body of the new message
         :param sender: A User object (request.user probably)
         :param conversation: Conversation instance
-        :param new_participants: Optional, if specified it should be a list of
-                                 usernames, who will be added to the existing
-                                 conversation as new participants.
+        :param new_participants: Optional, if specified it should be a Queryset
+                                 or list of user objects, who will be added to
+                                 the existing conversation as new participants.
         """
         return cls.__send_to_conversation(body,
                                           sender,
@@ -283,6 +285,6 @@ class Message(models.Model):
 
         :param body: Body of the new message
         :param sender: A User object (request.user probably)
-        :param recipients: List of usernames who will receive the message
-        """
+        :param recipients: Queryset or list of user objects who will receive
+                           the message."""
         return cls.__send_to_users(body, sender, recipients)

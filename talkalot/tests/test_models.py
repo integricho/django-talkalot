@@ -69,7 +69,7 @@ class BaseMessagingTest(object):
         self.assertEqual(conversation.active_participations.count(),
                          len(participants))
         for participant in conversation.active_participations.all():
-            self.assertIn(participant.user.username, participants)
+            self.assertIn(participant.user, participants)
 
 
 class BaseMessagingTestCase(BaseMessagingTest, TestCase):
@@ -84,13 +84,33 @@ class ConversationTestCase(BaseMessagingTestCase):
 
     @setup_users
     @setup_conversations
+    def test_get_participants(self):
+        participants = [self.users['friend0'], self.users['friend1']]
+        (conversation,) = Conversation.objects.for_participants(participants)
+
+        for user in conversation.participants:
+            self.assertIn(user, participants)
+
+    @setup_users
+    @setup_conversations
+    def test_get_participant_names(self):
+        participants = [self.users['friend0'], self.users['friend1']]
+        (conversation,) = Conversation.objects.for_participants(participants)
+
+        for username in conversation.participant_names:
+            self.assertIn(username, ['friend0', 'friend1'])
+
+    @setup_users
+    @setup_conversations
     def test_conversation_exists(self):
-        participants = ['friend0', 'friend1']
+        participants = [self.users['friend0'], self.users['friend1']]
         conversations = Conversation.objects.for_participants(participants)
         (conversation,) = conversations
         self.assertEqual(conversation.pk, self.conv1.pk)
 
-        participants = ['friend0', 'friend1', 'friend3']
+        participants = [self.users['friend0'],
+                        self.users['friend1'],
+                        self.users['friend3']]
         conversations = Conversation.objects.for_participants(participants)
         (conversation,) = conversations
         self.assertEqual(conversation.pk, self.conv4.pk)
@@ -98,18 +118,18 @@ class ConversationTestCase(BaseMessagingTestCase):
     @setup_users
     @setup_conversations
     def test_conversation_does_not_exists(self):
-        participants = ['friend0', 'friend 3']
+        participants = [self.users['friend0'], self.users['friend3']]
         conversations = Conversation.objects.for_participants(participants)
         self.assertTrue(not conversations.exists())
 
-        participants = ['troll']
+        participants = [self.users['foe0']]
         conversations = Conversation.objects.for_participants(participants)
         self.assertTrue(not conversations.exists())
 
     @setup_users
     def test_start_new_private_conversation(self):
         creator = self.users['friend0']
-        participants = ('friend0', 'friend1')
+        participants = [self.users['friend0'], self.users['friend1']]
 
         conversation = Conversation.start(creator=creator,
                                           participants=participants)
@@ -121,7 +141,9 @@ class ConversationTestCase(BaseMessagingTestCase):
     @setup_users
     def test_start_new_group_conversation(self):
         creator = self.users['friend1']
-        participants = ('friend1', 'friend2', 'friend3')
+        participants = [self.users['friend1'],
+                        self.users['friend2'],
+                        self.users['friend3']]
 
         conversation = Conversation.start(creator=creator,
                                           participants=participants)
@@ -148,7 +170,7 @@ class MessageTestCase(BaseMessagingTestCase):
         """Tests the __str__ methods of all models"""
         body = 'group message'
         sender = self.users['friend0']
-        recipients = ('friend1')
+        recipients = [self.users['friend1']]
         message = Message.send_to_users(body, sender, recipients)
         participation = (message.conversation.participations
                                              .get(user=self.users['friend0']))
@@ -171,16 +193,13 @@ class MessageTestCase(BaseMessagingTestCase):
                                participation.conversation)
         )
 
-    @setup_users
-    def test_send_to_users(self):
+    def _send_to_users_test(self, participants):
         """Starts a new group conversation from scratch, and replies to it,
         always using only the usernames of the recipients"""
         body = 'group message'
 
-        participants = ('friend0', 'friend1', 'friend3')
-
         sender1 = self.users['friend0']
-        recipients1 = ('friend1', 'friend3')
+        recipients1 = [self.users['friend1'], self.users['friend3']]
         message1 = Message.send_to_users(body, sender1, recipients1)
 
         self.check_conv_of(message=message1,
@@ -190,7 +209,7 @@ class MessageTestCase(BaseMessagingTestCase):
                            conversation_participants=participants)
 
         sender2 = self.users['friend1']
-        recipients2 = ('friend0', 'friend3')
+        recipients2 = [self.users['friend0'], self.users['friend3']]
         message2 = Message.send_to_users(body, sender2, recipients2)
 
         self.check_conv_of(message=message2,
@@ -203,17 +222,32 @@ class MessageTestCase(BaseMessagingTestCase):
         self.assertEqual(message2.conversation.pk, message1.conversation.pk)
 
     @setup_users
-    def test_send_to_group_conversation(self):
+    def test_send_to_users_list(self):
+        participants = [self.users['friend0'],
+                        self.users['friend1'],
+                        self.users['friend3']]
+        self._send_to_users_test(participants)
+
+    @setup_users
+    def test_send_to_users_queryset(self):
+        User = get_user_model()
+        usernames = ['friend0', 'friend1', 'friend3']
+        participants = User.objects.filter(username__in=usernames)
+        self._send_to_users_test(participants)
+
+    def _send_to_conversation_test(self, new_participants):
         """Starts a new group conversation from scratch, then tries to reply to
         the conversation itself, not through the usernames only, and include
         additional participants."""
         # send first group message
         body = 'group message'
 
-        initial_participants = ('friend0', 'friend1', 'friend3')
+        initial_participants = [self.users['friend0'],
+                                self.users['friend1'],
+                                self.users['friend3']]
 
         sender1 = self.users['friend0']
-        recipients1 = ('friend1', 'friend3')
+        recipients1 = [self.users['friend1'], self.users['friend3']]
         message1 = Message.send_to_users(body, sender1, recipients1)
 
         self.check_conv_of(message=message1,
@@ -224,12 +258,14 @@ class MessageTestCase(BaseMessagingTestCase):
 
         # reply to it and attach new user
         sender2 = self.users['friend1']
-        message2 = Message.send_to_conversation(body,
-                                                sender2,
-                                                message1.conversation,
-                                                new_participants=('friend2',))
-
-        merged_participants = initial_participants + ('friend2',)
+        message2 = Message.send_to_conversation(
+            body,
+            sender2,
+            message1.conversation,
+            new_participants=new_participants
+        )
+        merged_participants = (list(initial_participants) +
+                               list(new_participants))
 
         self.check_conv_of(message=message2,
                            parent=message1,
@@ -242,16 +278,29 @@ class MessageTestCase(BaseMessagingTestCase):
         self.assertEqual(message2.conversation.pk, message1.conversation.pk)
 
     @setup_users
+    def test_send_to_conversation_list(self):
+        new_participants = [self.users['friend2']]
+        self._send_to_conversation_test(new_participants)
+
+    @setup_users
+    def test_send_to_conversation_queryset(self):
+        User = get_user_model()
+        new_participants = User.objects.filter(username='friend2')
+        self._send_to_conversation_test(new_participants)
+
+    @setup_users
     def test_leave_then_rejoin_group_conversation(self):
         """Starts a new group conversation, the started leaves the conversation
         but get's invited back by another member."""
         # send first group message
         body = 'group message'
 
-        initial_participants = ('friend0', 'friend1', 'friend3')
+        initial_participants = [self.users['friend0'],
+                                self.users['friend1'],
+                                self.users['friend3']]
 
         sender1 = self.users['friend0']
-        recipients1 = ('friend1', 'friend3')
+        recipients1 = [self.users['friend1'], self.users['friend3']]
         message1 = Message.send_to_users(body, sender1, recipients1)
 
         self.check_conv_of(message=message1,
@@ -270,14 +319,17 @@ class MessageTestCase(BaseMessagingTestCase):
                            parent=None,
                            sender=sender1,
                            conversation_creator=sender1,
-                           conversation_participants=('friend1', 'friend3'))
+                           conversation_participants=[self.users['friend1'],
+                                                      self.users['friend3']])
 
         # reply to conversation, and add friend0 back
         sender2 = self.users['friend1']
-        message2 = Message.send_to_conversation(body,
-                                                sender2,
-                                                message1.conversation,
-                                                new_participants=('friend0',))
+        message2 = Message.send_to_conversation(
+            body,
+            sender2,
+            message1.conversation,
+            new_participants=[self.users['friend0']]
+        )
 
         self.check_conv_of(message=message2,
                            parent=message1,
@@ -297,8 +349,10 @@ class MessageTestCase(BaseMessagingTestCase):
         body = 'private message'
 
         sender1 = self.users['friend0']
-        message1 = Message.send_to_users(body, sender1, ('friend1',))
-        conv1_participants = ('friend0', 'friend1')
+        message1 = Message.send_to_users(body,
+                                         sender1,
+                                         [self.users['friend1']])
+        conv1_participants = [self.users['friend0'], self.users['friend1']]
 
         self.check_conv_of(message=message1,
                            parent=None,
@@ -327,8 +381,10 @@ class MessageTestCase(BaseMessagingTestCase):
         body = 'private message'
 
         sender1 = self.users['friend0']
-        message1 = Message.send_to_users(body, sender1, ('friend1',))
-        conv1_participants = ('friend0', 'friend1')
+        message1 = Message.send_to_users(body,
+                                         sender1,
+                                         [self.users['friend1']])
+        conv1_participants = [self.users['friend0'], self.users['friend1']]
 
         self.check_conv_of(message=message1,
                            parent=None,
@@ -351,12 +407,16 @@ class MessageTestCase(BaseMessagingTestCase):
         self.assertEqual(message2.conversation.pk, message1.conversation.pk)
 
         # reply again and include the third participant now
-        message3 = Message.send_to_conversation(body,
-                                                sender1,
-                                                message1.conversation,
-                                                new_participants=('friend2',))
+        message3 = Message.send_to_conversation(
+            body,
+            sender1,
+            message1.conversation,
+            new_participants=[self.users['friend2']]
+        )
 
-        conv2_participants = ('friend0', 'friend1', 'friend2')
+        conv2_participants = [self.users['friend0'],
+                              self.users['friend1'],
+                              self.users['friend2']]
 
         self.check_conv_of(message=message3,
                            parent=None,
@@ -373,8 +433,10 @@ class MessageTestCase(BaseMessagingTestCase):
         # a private conversation has been started
         message1 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend1',))
-        Message.send_to_users(body, self.users['friend1'], ('friend0',))
+                                         [self.users['friend1']])
+        Message.send_to_users(body,
+                              self.users['friend1'],
+                              [self.users['friend0']])
 
         # the enemy decides to drop in this conversation
         with self.assertRaises(MessagingPermissionDenied):
@@ -382,7 +444,10 @@ class MessageTestCase(BaseMessagingTestCase):
                                          self.users['foe0'],
                                          message1.conversation)
 
-        self.assert_participants(message1.conversation, ('friend0', 'friend1'))
+        self.assert_participants(
+            message1.conversation,
+            [self.users['friend0'], self.users['friend1']]
+        )
         self.assertEqual(message1.conversation.messages.count(), 2)
 
     @setup_users
@@ -390,10 +455,12 @@ class MessageTestCase(BaseMessagingTestCase):
         # start group conversation
         body = 'group message'
 
-        initial_participants = ('friend0', 'friend1', 'friend3')
+        initial_participants = [self.users['friend0'],
+                                self.users['friend1'],
+                                self.users['friend3']]
 
         sender1 = self.users['friend0']
-        recipients1 = ('friend1', 'friend3')
+        recipients1 = [self.users['friend1'], self.users['friend3']]
         message1 = Message.send_to_users(body, sender1, recipients1)
 
         self.check_conv_of(message=message1,
@@ -415,7 +482,10 @@ class MessageTestCase(BaseMessagingTestCase):
                                          self.users['friend0'],
                                          message1.conversation)
 
-        self.assert_participants(message1.conversation, ('friend1', 'friend3'))
+        self.assert_participants(
+            message1.conversation,
+            [self.users['friend1'], self.users['friend3']]
+        )
         self.assertEqual(message1.conversation.messages.count(), 1)
 
 
@@ -424,14 +494,18 @@ class DataIntegrityTestCase(BaseMessagingTransactionTestCase):
     @setup_users
     def test_atomicity(self):
         # set up an initial conversation
-        message = Message.send_to_users('msg',
-                                        self.users['friend0'],
-                                        ('friend1', 'friend2'))
+        message = Message.send_to_users(
+            'msg',
+            self.users['friend0'],
+            [self.users['friend1'], self.users['friend2']]
+        )
         Message.send_to_conversation('msg2',
                                      self.users['friend1'],
                                      message.conversation)
         # make sure it has the right number of messages and participants
-        expected_participants = ('friend0', 'friend1', 'friend2')
+        expected_participants = [self.users['friend0'],
+                                 self.users['friend1'],
+                                 self.users['friend2']]
         expected_message_count = 2
 
         self.assert_participants(message.conversation, expected_participants)
@@ -447,10 +521,12 @@ class DataIntegrityTestCase(BaseMessagingTransactionTestCase):
         Conversation.save = failing_save
 
         with self.assertRaises(Exception):
-            Message.send_to_conversation('msg',
-                                         self.users['friend0'],
-                                         message.conversation,
-                                         new_participants=['friend3'])
+            Message.send_to_conversation(
+                'msg',
+                self.users['friend0'],
+                message.conversation,
+                new_participants=[self.users['friend3']]
+            )
 
         Conversation.save = old_save
 
@@ -462,56 +538,65 @@ class DataIntegrityTestCase(BaseMessagingTransactionTestCase):
 
 class ParticipationTestCase(BaseMessagingTestCase):
 
-    def verify_participation(self, username, inbox):
+    def verify_participation(self, user, inbox):
         for participation in inbox:
-            self.assertIn(username,
-                          participation.conversation.participant_names)
+            self.assertIn(user, participation.conversation.participants)
 
     @setup_users
     def test_get_inbox(self):
         body = 'private message'
 
         # send three private messages to three different users
-        for recipient in ('friend1', 'friend2', 'friend3'):
-            Message.send_to_users(body, self.users['friend0'], (recipient,))
+        for recipient in [self.users['friend1'],
+                          self.users['friend2'],
+                          self.users['friend3']]:
+            Message.send_to_users(body, self.users['friend0'], [recipient])
 
         # send one more message to first user (tricky)
-        Message.send_to_users(body, self.users['friend0'], ('friend1',))
+        Message.send_to_users(body,
+                              self.users['friend0'],
+                              [self.users['friend1']])
 
         # create a group conversation with two other users
-        group_message = Message.send_to_users(body,
-                                              self.users['friend0'],
-                                              ('friend1', 'friend3'))
+        group_message = Message.send_to_users(
+            body,
+            self.users['friend0'],
+            [self.users['friend1'], self.users['friend3']]
+        )
 
         # send one reply to friend0 (should not affect conversation count)
-        Message.send_to_users(body, self.users['friend1'], ('friend0',))
+        Message.send_to_users(body,
+                              self.users['friend1'],
+                              [self.users['friend0']])
 
         # friend2 and friend1 exchange a couple of words
-        Message.send_to_users(body, self.users['friend2'], ('friend1',))
+        Message.send_to_users(body,
+                              self.users['friend2'],
+                              [self.users['friend1']])
 
         expected_conversation_count_friend0 = 4
         friend0_inbox = Participation.objects.inbox_for(self.users['friend0'])
         self.assertEqual(friend0_inbox.count(),
                          expected_conversation_count_friend0)
-        self.verify_participation('friend0', friend0_inbox)
+        self.verify_participation(self.users['friend0'], friend0_inbox)
 
         expected_conversation_count_friend1 = 3
         friend1_inbox = Participation.objects.inbox_for(self.users['friend1'])
         self.assertEqual(friend1_inbox.count(),
                          expected_conversation_count_friend1)
-        self.verify_participation('friend1', friend1_inbox)
+        self.verify_participation(self.users['friend1'], friend1_inbox)
 
         expected_conversation_count_friend2 = 2
         friend2_inbox = Participation.objects.inbox_for(self.users['friend2'])
         self.assertEqual(friend2_inbox.count(),
                          expected_conversation_count_friend2)
-        self.verify_participation('friend2', friend2_inbox)
+        self.verify_participation(self.users['friend2'], friend2_inbox)
 
         expected_conversation_count_friend3 = 2
         friend3_inbox = Participation.objects.inbox_for(self.users['friend3'])
         self.assertEqual(friend3_inbox.count(),
                          expected_conversation_count_friend3)
-        self.verify_participation('friend3', friend3_inbox)
+        self.verify_participation(self.users['friend3'], friend3_inbox)
 
         # after friend0 leaves a group conversation, it should reduce the
         # conversation count
@@ -523,7 +608,7 @@ class ParticipationTestCase(BaseMessagingTestCase):
         friend0_inbox = Participation.objects.inbox_for(self.users['friend0'])
         self.assertEqual(friend0_inbox.count(),
                          expected_conversation_count_friend0)
-        self.verify_participation('friend0', friend0_inbox)
+        self.verify_participation(self.users['friend0'], friend0_inbox)
 
     def verify_is_read(self, message, by_user, should_have_read):
         participation = message.conversation.participations.get(user=by_user)
@@ -545,13 +630,13 @@ class ParticipationTestCase(BaseMessagingTestCase):
 
         message1 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend1',))
+                                         [self.users['friend1']])
         message2 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend2',))
+                                         [self.users['friend2']])
         message3 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend3',))
+                                         [self.users['friend3']])
 
         # no one "read" the message except sender
         expectations = ((message1, (('friend0', True), ('friend1', False))),
@@ -601,13 +686,13 @@ class ParticipationTestCase(BaseMessagingTestCase):
 
         message1 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend1',))
+                                         [self.users['friend1']])
         message2 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend2',))
+                                         [self.users['friend2']])
         message3 = Message.send_to_users(body,
                                          self.users['friend0'],
-                                         ('friend3',))
+                                         [self.users['friend3']])
 
         # no one replied to the conversation except sender
         expectations = ((message1, (('friend0', True), ('friend1', False))),
@@ -641,7 +726,9 @@ class ParticipationTestCase(BaseMessagingTestCase):
 
         message = Message.send_to_users(body,
                                         self.users['friend0'],
-                                        ('friend1', 'friend2', 'friend3'))
+                                        [self.users['friend1'],
+                                         self.users['friend2'],
+                                         self.users['friend3']])
 
         # no one replied to the conversation except sender
         expectations = [(message, (('friend0', True),
