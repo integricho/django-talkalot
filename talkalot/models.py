@@ -2,15 +2,6 @@
 from __future__ import unicode_literals
 
 from django.conf import settings
-try:
-    # Django 1.5+
-    from django.contrib.auth import get_user_model
-except ImportError:
-    # Django < 1.5
-    def get_user_model():
-        from django.contrib.auth.models import User
-        return User
-
 from django.db import models
 try:
     from django.db.transaction import atomic
