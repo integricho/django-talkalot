@@ -8,6 +8,7 @@ except ImportError:
         from django.contrib.auth.models import User
         return User
 
+from django.core.cache import cache
 from django.test import TestCase, TransactionTestCase
 
 from ..exceptions import MessagingPermissionDenied
@@ -70,6 +71,9 @@ class BaseMessagingTest(object):
                          len(participants))
         for participant in conversation.active_participations.all():
             self.assertIn(participant.user, participants)
+
+    def tearDown(self):
+        cache.clear()
 
 
 class BaseMessagingTestCase(BaseMessagingTest, TestCase):

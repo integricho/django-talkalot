@@ -2,7 +2,9 @@
 from __future__ import unicode_literals
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
+from django.db.models.signals import post_save
 try:
     from django.db.transaction import atomic
 except ImportError:
@@ -13,10 +15,12 @@ from django.utils.timezone import now
 
 from .exceptions import MessagingPermissionDenied
 from .managers import ConversationManager, ParticipationManager
+from .settings import (PRIVATE_CONVERSATION_MEMBER_COUNT,
+                       INBOX_CACHE_KEY_PATTERN,
+                       CONVERSATION_CACHE_KEY_PATTERN)
 
 
 AUTH_USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
-PRIVATE_CONVERSATION_MEMBER_COUNT = 2
 
 
 @python_2_unicode_compatible
@@ -47,9 +51,12 @@ class Participation(models.Model):
     def read_conversation(self):
         """Gets all the messages from the current conversation and marks them
         as read by the participant who requested it."""
-        messages = self.conversation.messages.all()
+        messages = self.conversation.get_messages()
+
+        # mark the conversation as read by the current participator only
         self.read_at = now()
         self.save()
+
         return messages
 
     def leave_conversation(self):
@@ -119,6 +126,13 @@ class Conversation(models.Model):
         return list(self.active_participations.values_list('user__username',
                                                            flat=True))
 
+    def has_participant(self, user):
+        """Returns whether this user participates in this conversation.
+
+        :param user: A User object (request.user probably)
+        """
+        return self.active_participations.filter(user=user).exists()
+
     @property
     def is_private(self):
         """Returns whether the conversation is private or not.
@@ -128,12 +142,15 @@ class Conversation(models.Model):
         return (self.participations.count() ==
                 PRIVATE_CONVERSATION_MEMBER_COUNT)
 
-    def has_participant(self, user):
-        """Returns whether this user participates in this conversation.
+    def get_messages(self):
+        key = CONVERSATION_CACHE_KEY_PATTERN.format(self.pk)
+        messages = cache.get(key)
 
-        :param user: A User object (request.user probably)
-        """
-        return self.active_participations.filter(user=user).exists()
+        if not messages:
+            messages = self.messages.all()
+            cache.set(key, messages)
+
+        return messages
 
     @classmethod
     def start(cls, creator, participants):
@@ -278,3 +295,43 @@ class Message(models.Model):
         :param recipients: Queryset or list of user objects who will receive
                            the message."""
         return cls.__send_to_users(body, sender, recipients)
+
+
+def clear_cached_inbox_of_participant(sender, instance, **kwargs):
+    """When a participation is changed, either revoked or reinstated, the inbox
+    of the participant shall be invalidated, to reflect the current list of
+    active conversations."""
+    key = INBOX_CACHE_KEY_PATTERN.format(instance.user.pk)
+    cache.delete(key)
+
+
+def clear_cached_inbox_of_all_participants(sender, instance, **kwargs):
+    """When a message is sent, the cached inboxes of all the participants of
+    the conversation where the message is sent shall be invalidated as the lead
+    message has changed, and the order of the conversations in their inboxes
+    will be different."""
+    for participation in instance.conversation.participations.all():
+        key = INBOX_CACHE_KEY_PATTERN.format(participation.user.pk)
+        cache.delete(key)
+
+
+def clear_conversation_cache(sender, instance, **kwargs):
+    """When a message is sent, the cached conversation (all of it's messages)
+    shall be invalidated."""
+    key = CONVERSATION_CACHE_KEY_PATTERN.format(instance.conversation.pk)
+    cache.delete(key)
+
+
+post_save.connect(clear_cached_inbox_of_participant,
+                  sender=Participation,
+                  dispatch_uid="clear_cached_inbox_of_participant")
+
+
+post_save.connect(clear_cached_inbox_of_all_participants,
+                  sender=Message,
+                  dispatch_uid="clear_cached_inbox_of_all_participants")
+
+
+post_save.connect(clear_conversation_cache,
+                  sender=Message,
+                  dispatch_uid="clear_conversation_cache")
