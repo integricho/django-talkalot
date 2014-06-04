@@ -45,9 +45,8 @@ class Participation(models.Model):
         return self.deleted_at is not None
 
     def read_conversation(self):
-        """Gets all the messages from the current conversation and marks it
-        read by the participant who requested it.
-        """
+        """Gets all the messages from the current conversation and marks them
+        as read by the participant who requested it."""
         messages = self.conversation.messages.all()
         self.read_at = now()
         self.save()
