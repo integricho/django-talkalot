@@ -11,6 +11,9 @@ from .settings import INBOX_CACHE_KEY_PATTERN, PARTICIPANTS_CACHE_KEY_PATTERN
 class ConversationManager(models.Manager):
 
     def for_participants(self, participants):
+        """Query a specific conversation for a specified list of participants.
+        If possible, retrieve it from cache (no invalidation required) as a
+        unique set of participants can have only one conversation."""
         user_ids = sorted(user.pk for user in participants)
         str_ids = '_'.join(str(uid) for uid in user_ids)
         key = PARTICIPANTS_CACHE_KEY_PATTERN.format(str_ids)
@@ -36,6 +39,8 @@ class ConversationManager(models.Manager):
 class ParticipationManager(models.Manager):
 
     def inbox_for(self, user):
+        """Return the list of participations for a specific user, which
+        essentially represents that user's inbox."""
         key = INBOX_CACHE_KEY_PATTERN.format(user.pk)
         cached_qs = cache.get(key)
 

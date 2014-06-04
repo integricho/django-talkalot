@@ -129,16 +129,14 @@ class Conversation(models.Model):
     def has_participant(self, user):
         """Returns whether this user participates in this conversation.
 
-        :param user: A User object (request.user probably)
-        """
+        :param user: A User object (request.user probably)"""
         return self.active_participations.filter(user=user).exists()
 
     @property
     def is_private(self):
         """Returns whether the conversation is private or not.
         If there are more than PRIVATE_CONVERSATION_MEMBER_COUNT (2)
-        participants in the conversation, it is not private.
-        """
+        participants in the conversation, it is not private."""
         return (self.participations.count() ==
                 PRIVATE_CONVERSATION_MEMBER_COUNT)
 
@@ -158,8 +156,7 @@ class Conversation(models.Model):
 
         :param creator: A User object (request.user probably)
         :param participants: A QuerySet or list of user objects, who will be
-                             added to the conversation as participants.
-        """
+                             added to the conversation as participants."""
         conversation = cls.objects.create(creator=creator)
         conversation.add_participants(participants)
         return conversation
