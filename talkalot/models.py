@@ -59,9 +59,9 @@ class Participation(models.Model):
 
         return messages
 
-    def leave_conversation(self):
+    def revoke(self):
         """Sets the deleted_at field of the participation to the time when the
-        member in question left the conversation."""
+        member in question left the conversation or was kicked out of it."""
         if self.conversation.is_private:
             # can't leave one-on-one conversations
             return

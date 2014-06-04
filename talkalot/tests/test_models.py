@@ -317,7 +317,7 @@ class MessageTestCase(BaseMessagingTestCase):
         p1 = (message1.conversation
                       .participations
                       .get(user=self.users['friend0']))
-        p1.leave_conversation()
+        p1.revoke()
 
         self.check_conv_of(message=message1,
                            parent=None,
@@ -370,7 +370,7 @@ class MessageTestCase(BaseMessagingTestCase):
         p1 = (message1.conversation
                       .participations
                       .get(user=self.users['friend0']))
-        p1.leave_conversation()
+        p1.revoke()
 
         self.check_conv_of(message=message1,
                            parent=None,
@@ -477,7 +477,7 @@ class MessageTestCase(BaseMessagingTestCase):
         p1 = (message1.conversation
                       .participations
                       .get(user=self.users['friend0']))
-        p1.leave_conversation()
+        p1.revoke()
 
         # friend0 regrets his decision to leave the conversation, tries to
         # resume it, but now there's now way back on his own
@@ -606,7 +606,7 @@ class ParticipationTestCase(BaseMessagingTestCase):
         # conversation count
         (group_message.conversation.active_participations
                                    .get(user=self.users['friend0'])
-                                   .leave_conversation())
+                                   .revoke())
 
         expected_conversation_count_friend0 = 3
         friend0_inbox = Participation.objects.inbox_for(self.users['friend0'])
