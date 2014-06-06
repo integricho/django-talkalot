@@ -614,6 +614,74 @@ class ParticipationTestCase(BaseMessagingTestCase):
                          expected_conversation_count_friend0)
         self.verify_participation(self.users['friend0'], friend0_inbox)
 
+    @setup_users
+    def test_get_unread(self):
+        body = 'private message'
+
+        # send three private messages to three different users
+        for recipient in [self.users['friend1'],
+                          self.users['friend2'],
+                          self.users['friend3']]:
+            Message.send_to_users(body, self.users['friend0'], [recipient])
+
+        # send one more message to first user
+        Message.send_to_users(body,
+                              self.users['friend0'],
+                              [self.users['friend1']])
+
+        # create a group conversation with two other users
+        Message.send_to_users(
+            body,
+            self.users['friend0'],
+            [self.users['friend1'], self.users['friend3']]
+        )
+
+        fr0_unread = Participation.objects.unread_for(self.users['friend0'])
+        self.assertEqual(fr0_unread.count(), 0)
+
+        fr1_unread = Participation.objects.unread_for(self.users['friend1'])
+        self.assertEqual(fr1_unread.count(), 2)
+
+        fr2_unread = Participation.objects.unread_for(self.users['friend2'])
+        self.assertEqual(fr2_unread.count(), 1)
+
+        fr3_unread = Participation.objects.unread_for(self.users['friend3'])
+        self.assertEqual(fr3_unread.count(), 2)
+
+        # reply to friend0
+        Message.send_to_users(body,
+                              self.users['friend1'],
+                              [self.users['friend0']])
+
+        # friend0's inbox should now increase
+        fr0_unread = Participation.objects.unread_for(self.users['friend0'])
+        self.assertEqual(fr0_unread.count(), 1)
+
+        # friend1's inbox should not change as he just replied, without reading
+        fr1_unread = Participation.objects.unread_for(self.users['friend1'])
+        self.assertEqual(fr1_unread.count(), 2)
+
+        # friend1 reads message from friend0, which decreases unread inbox
+        conv = Conversation.objects.for_participants([self.users['friend0'],
+                                                      self.users['friend1']])
+        fr1_part = fr1_unread.get(conversation=conv)
+        fr1_part.read_conversation()
+
+        # friend1's inbox should not change as he just replied, without reading
+        fr1_unread = Participation.objects.unread_for(self.users['friend1'])
+        self.assertEqual(fr1_unread.count(), 1)
+
+        # friend2 reads the message
+        conv = Conversation.objects.for_participants([self.users['friend0'],
+                                                      self.users['friend2']])
+        fr2_part = fr2_unread.get(conversation=conv)
+        fr2_part.read_conversation()
+
+        # so friend2 should not have any more unread conversations
+        fr2_unread = Participation.objects.unread_for(self.users['friend2'])
+        self.assertEqual(fr2_unread.count(), 0)
+
+
     def verify_is_read(self, message, by_user, should_have_read):
         participation = message.conversation.participations.get(user=by_user)
         if should_have_read:
