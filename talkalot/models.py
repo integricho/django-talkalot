@@ -18,6 +18,7 @@ from .managers import ConversationManager, ParticipationManager
 from .settings import (PRIVATE_CONVERSATION_MEMBER_COUNT,
                        INBOX_CACHE_KEY_PATTERN,
                        CONVERSATION_CACHE_KEY_PATTERN)
+from .utils import is_date_greater
 
 
 AUTH_USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
@@ -214,21 +215,25 @@ class Message(models.Model):
         conversation.latest_message = message
         conversation.save()
 
-        # mark conversation as not read for all other participants
-        (conversation.active_participations.exclude(user=sender)
-                                           .update(read_at=None))
+        p_sender = sender.participations.get(conversation=conversation)
+        p_recipients = conversation.active_participations.exclude(user=sender)
+        # mark conversation as not read for all participants except the sender
+        p_recipients.update(read_at=None)
 
-        if not message.parent:
-            # if this is the first message of the conversation, the sender's
-            # participation should indicate that he/she has both replied to and
-            # read this conversation
+        if not any(is_date_greater(pr.replied_at, p_sender.read_at)
+                   for pr in p_recipients):
+            # if the sender's read_at time is greater than all the other
+            # participant's replied_at time, it means the sender already read
+            # all the messages the other's sent, so update the sender's read_at
+            # value again, to reflect that the sender read it's own (just now
+            # sent) message.
             fields = dict(replied_at=now(), read_at=now())
         else:
-            # if this is not the first message, the sender's replied indicator
-            # should be updated only, because the read_at field already has a
-            # state, depending whether the sender read the conversation before
-            # or not.
-            # this means that if the sender sends a reply to the conversation,
+            # if the sender's read_at time is less than any of the other
+            # participants replied_at time, it means the sender didn't yet
+            # read the other replier's message, so do not touch the sender's
+            # read_at time.
+            # this also means that if the sender replies to the conversation,
             # it doesnt't imply that he/she also read the latest message sent
             # before his/her message
             fields = dict(replied_at=now())
