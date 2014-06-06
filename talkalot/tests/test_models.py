@@ -346,6 +346,13 @@ class MessageTestCase(BaseMessagingTestCase):
         self.assertEqual(message2.conversation.pk, message1.conversation.pk)
 
     @setup_users
+    def test_self_messaging(self):
+        with self.assertRaises(MessagingPermissionDenied):
+            Message.send_to_users('hi jack!',
+                                  self.users['friend0'],
+                                  [self.users['friend0']])
+
+    @setup_users
     def test_cant_leave_private_conversation(self):
         """Starts a private conversation, then tries to leave it without
         success."""
@@ -680,7 +687,6 @@ class ParticipationTestCase(BaseMessagingTestCase):
         # so friend2 should not have any more unread conversations
         fr2_unread = Participation.objects.unread_for(self.users['friend2'])
         self.assertEqual(fr2_unread.count(), 0)
-
 
     def verify_is_read(self, message, by_user, should_have_read):
         participation = message.conversation.participations.get(user=by_user)

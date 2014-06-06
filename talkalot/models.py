@@ -247,8 +247,12 @@ class Message(models.Model):
         """Internally used by both send_to_users and __send_to_conversation
         methods. Refactored as a separate method to avoid nesting the atomic
         decorator when __send_to_conversation needs to call __send_to_users."""
-        participants = list(recipients) + [sender]
+        participants = list(recipients)
 
+        if sender in participants and len(participants) == 1:
+            raise MessagingPermissionDenied("No self-messaging allowed.")
+
+        participants.append(sender)
         conversations = Conversation.objects.for_participants(participants)
 
         if not conversations.exists():
