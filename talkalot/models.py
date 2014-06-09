@@ -179,7 +179,7 @@ class Message(models.Model):
                                related_name='next_messages',
                                blank=True,
                                null=True)
-    sender = models.ForeignKey(AUTH_USER_MODEL, related_name='sent_messages')
+    sender = models.ForeignKey(AUTH_USER_MODEL, related_name='messages')
     sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
     conversation = models.ForeignKey('Conversation', related_name='messages')
 
