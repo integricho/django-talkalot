@@ -50,15 +50,9 @@ class Participation(models.Model):
         return self.deleted_at is not None
 
     def read_conversation(self):
-        """Gets all the messages from the current conversation and marks them
-        as read by the participant who requested it."""
-        messages = self.conversation.get_messages()
-
-        # mark the conversation as read by the current participator only
+        """Mark the conversation as read by the participant who requested."""
         self.read_at = now()
         self.save()
-
-        return messages
 
     def revoke(self):
         """Sets the deleted_at field of the participation to the time when the
