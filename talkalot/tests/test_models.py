@@ -314,10 +314,11 @@ class MessageTestCase(BaseMessagingTestCase):
                            conversation_participants=initial_participants)
 
         # friend0 leaves the conversation
-        p1 = (message1.conversation
-                      .participations
-                      .get(user=self.users['friend0']))
-        p1.revoke()
+        # p1 = (message1.conversation
+        #               .participations
+        #               .get(user=self.users['friend0']))
+        # p1.revoke()
+        message1.conversation.remove_participants([self.users['friend0']])
 
         self.check_conv_of(message=message1,
                            parent=None,
@@ -374,10 +375,11 @@ class MessageTestCase(BaseMessagingTestCase):
         self.assertEqual(message1.conversation.is_private, True)
 
         # friend0 tries to leave the conversation
-        p1 = (message1.conversation
-                      .participations
-                      .get(user=self.users['friend0']))
-        p1.revoke()
+        # p1 = (message1.conversation
+        #               .participations
+        #               .get(user=self.users['friend0']))
+        # p1.revoke()
+        message1.conversation.remove_participants([self.users['friend0']])
 
         self.check_conv_of(message=message1,
                            parent=None,
@@ -481,10 +483,11 @@ class MessageTestCase(BaseMessagingTestCase):
                            conversation_participants=initial_participants)
 
         # friend0 leaves the conversation
-        p1 = (message1.conversation
-                      .participations
-                      .get(user=self.users['friend0']))
-        p1.revoke()
+        # p1 = (message1.conversation
+        #               .participations
+        #               .get(user=self.users['friend0']))
+        # p1.revoke()
+        message1.conversation.remove_participants([self.users['friend0']])
 
         # friend0 regrets his decision to leave the conversation, tries to
         # resume it, but now there's now way back on his own
@@ -611,9 +614,10 @@ class ParticipationTestCase(BaseMessagingTestCase):
 
         # after friend0 leaves a group conversation, it should reduce the
         # conversation count
-        (group_message.conversation.active_participations
-                                   .get(user=self.users['friend0'])
-                                   .revoke())
+        # (group_message.conversation.active_participations
+        #                            .get(user=self.users['friend0'])
+        #                            .revoke())
+        group_message.conversation.remove_participants([self.users['friend0']])
 
         expected_conversation_count_friend0 = 3
         friend0_inbox = Participation.objects.inbox_for(self.users['friend0'])

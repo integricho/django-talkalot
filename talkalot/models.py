@@ -116,6 +116,15 @@ class Conversation(models.Model):
                 # re-added him/her
                 participation.reinstate()
 
+    def remove_participants(self, participants):
+        """Removes participants from an existing conversation.
+
+        :param participants: A QuerySet or list of user objects, whose
+                             participations will be revoked."""
+        for user in participants:
+            participation = self.participations.get(user=user)
+            participation.revoke()
+
     @property
     def participants(self):
         """Returns a list of user objects participating in this conversation"""
