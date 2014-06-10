@@ -354,6 +354,11 @@ class MessageTestCase(BaseMessagingTestCase):
                                   [self.users['friend0']])
 
     @setup_users
+    def test_no_participants(self):
+        with self.assertRaises(MessagingPermissionDenied):
+            Message.send_to_users('hi jack!', self.users['friend0'], [])
+
+    @setup_users
     def test_cant_leave_private_conversation(self):
         """Starts a private conversation, then tries to leave it without
         success."""

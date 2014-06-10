@@ -252,6 +252,9 @@ class Message(models.Model):
         decorator when __send_to_conversation needs to call __send_to_users."""
         participants = list(recipients)
 
+        if not participants:
+            raise MessagingPermissionDenied("No recipients specified.")
+
         # if sender is the only participant, deny message sending
         if sender in participants and len(participants) == 1:
             raise MessagingPermissionDenied("No self-messaging allowed.")
