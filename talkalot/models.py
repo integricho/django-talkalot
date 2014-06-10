@@ -51,6 +51,10 @@ class Participation(models.Model):
     def is_deleted(self):
         return self.deleted_at is not None
 
+    @property
+    def is_read(self):
+        return self.read_at is not None
+
     def read_conversation(self):
         """Mark the conversation as read by the participant who requested."""
         self.read_at = now()
@@ -120,6 +124,10 @@ class Conversation(models.Model):
         for user in participants:
             participation = self.participations.get(user=user)
             participation.revoke()
+
+    def is_read_by(self, participant):
+        participation = self.participations.get(user=participant)
+        return participation.is_read
 
     @property
     def participants(self):

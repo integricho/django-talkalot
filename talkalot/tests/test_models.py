@@ -737,11 +737,11 @@ class ParticipationTestCase(BaseMessagingTestCase):
         self.assertEqual(fr2_unread.count(), 0)
 
     def verify_is_read(self, message, by_user, should_have_read):
-        participation = message.conversation.participations.get(user=by_user)
+        is_read = message.conversation.is_read_by(by_user)
         if should_have_read:
-            self.assertNotEqual(participation.read_at, None)
+            self.assertTrue(is_read)
         else:
-            self.assertEqual(participation.read_at, None)
+            self.assertFalse(is_read)
 
     def verify_is_read_block(self, expectations):
         for message, participants in expectations:
