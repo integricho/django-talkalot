@@ -529,6 +529,23 @@ class MessageTestCase(BaseMessagingTestCase):
         self.assertEqual(self._message_sent_fired_count, 1)
         message_sent.disconnect(self._message_sent_handler)
 
+    @setup_users
+    def test_get_conversation_messages(self):
+        body = 'some message'
+        Message.send_to_users(body,
+                              self.users['friend0'],
+                              [self.users['friend1'], self.users['friend2']])
+        Message.send_to_users(body,
+                              self.users['friend1'],
+                              [self.users['friend0'], self.users['friend2']])
+        message = Message.send_to_users(body,
+                                        self.users['friend2'],
+                                        [self.users['friend0'],
+                                         self.users['friend1']])
+
+        all_messages = message.conversation.get_messages()
+        self.assertEqual(len(all_messages), 3)
+
 
 class DataIntegrityTestCase(BaseMessagingTransactionTestCase):
 
