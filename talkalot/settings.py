@@ -9,6 +9,9 @@ PRIVATE_CONVERSATION_MEMBER_COUNT = 2
 INBOX_CACHE_KEY_PATTERN = getattr(settings,
                                   'INBOX_CACHE_KEY_PATTERN',
                                   'inbox_for_{0}')
+UNREAD_CACHE_KEY_PATTERN = getattr(settings,
+                                   'UNREAD_CACHE_KEY_PATTERN',
+                                   'unread_for_{0}')
 CONVERSATION_CACHE_KEY_PATTERN = getattr(settings,
                                          'CONVERSATION_CACHE_KEY_PATTERN',
                                          'conversation_{0}')

@@ -17,6 +17,7 @@ from .exceptions import MessagingPermissionDenied
 from .managers import ConversationManager, ParticipationManager
 from .settings import (PRIVATE_CONVERSATION_MEMBER_COUNT,
                        INBOX_CACHE_KEY_PATTERN,
+                       UNREAD_CACHE_KEY_PATTERN,
                        CONVERSATION_CACHE_KEY_PATTERN)
 from .signals import message_sent
 from .utils import is_date_greater
@@ -315,8 +316,11 @@ def clear_cached_inbox_of_participant(sender, instance, **kwargs):
     """When a participation is changed, either revoked or reinstated, the inbox
     of the participant shall be invalidated, to reflect the current list of
     active conversations."""
-    key = INBOX_CACHE_KEY_PATTERN.format(instance.user.pk)
-    cache.delete(key)
+    inbox_key = INBOX_CACHE_KEY_PATTERN.format(instance.user.pk)
+    cache.delete(inbox_key)
+    # unread is a subset of inbox, so it must be invalidated as well
+    unread_key = UNREAD_CACHE_KEY_PATTERN.format(instance.user.pk)
+    cache.delete(unread_key)
 
 
 def clear_cached_inbox_of_all_participants(sender, instance, **kwargs):
@@ -325,8 +329,11 @@ def clear_cached_inbox_of_all_participants(sender, instance, **kwargs):
     message has changed, and the order of the conversations in their inboxes
     will be different."""
     for participation in instance.conversation.participations.all():
-        key = INBOX_CACHE_KEY_PATTERN.format(participation.user.pk)
-        cache.delete(key)
+        inbox_key = INBOX_CACHE_KEY_PATTERN.format(participation.user.pk)
+        cache.delete(inbox_key)
+        # unread is a subset of inbox, so it must be invalidated as well
+        unread_key = UNREAD_CACHE_KEY_PATTERN.format(participation.user.pk)
+        cache.delete(unread_key)
 
 
 def clear_conversation_cache(sender, instance, **kwargs):
