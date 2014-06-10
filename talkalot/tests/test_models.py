@@ -13,6 +13,7 @@ from django.test import TestCase, TransactionTestCase
 
 from ..exceptions import MessagingPermissionDenied
 from ..models import Conversation, Participation, Message
+from ..signals import message_sent
 
 
 def setup_users(func):
@@ -506,6 +507,27 @@ class MessageTestCase(BaseMessagingTestCase):
             [self.users['friend1'], self.users['friend3']]
         )
         self.assertEqual(message1.conversation.messages.count(), 1)
+
+    def _message_sent_handler(self, instance, **kwargs):
+        for username in instance.conversation.participant_names:
+            self.assertIn(username, ['friend0', 'friend1', 'friend3'])
+
+        self.assertEqual(len(instance.conversation.participants), 3)
+        self._message_sent_fired_count += 1
+
+    @setup_users
+    def test_message_sent_signal(self):
+        self._message_sent_fired_count = 0
+        message_sent.connect(self._message_sent_handler)
+
+        body = 'group message'
+        sender1 = self.users['friend0']
+        recipients1 = [self.users['friend1'], self.users['friend3']]
+        Message.send_to_users(body, sender1, recipients1)
+
+        # make sure signal was fired only once
+        self.assertEqual(self._message_sent_fired_count, 1)
+        message_sent.disconnect(self._message_sent_handler)
 
 
 class DataIntegrityTestCase(BaseMessagingTransactionTestCase):

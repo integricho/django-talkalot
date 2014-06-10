@@ -18,6 +18,7 @@ from .managers import ConversationManager, ParticipationManager
 from .settings import (PRIVATE_CONVERSATION_MEMBER_COUNT,
                        INBOX_CACHE_KEY_PATTERN,
                        CONVERSATION_CACHE_KEY_PATTERN)
+from .signals import message_sent
 from .utils import is_date_greater
 
 
@@ -335,6 +336,11 @@ def clear_conversation_cache(sender, instance, **kwargs):
     cache.delete(key)
 
 
+def fire_message_sent_signal(sender, instance, created, **kwargs):
+    if created:
+        message_sent.send(sender=sender, instance=instance)
+
+
 post_save.connect(clear_cached_inbox_of_participant,
                   sender=Participation,
                   dispatch_uid="clear_cached_inbox_of_participant")
@@ -348,3 +354,8 @@ post_save.connect(clear_cached_inbox_of_all_participants,
 post_save.connect(clear_conversation_cache,
                   sender=Message,
                   dispatch_uid="clear_conversation_cache")
+
+
+post_save.connect(fire_message_sent_signal,
+                  sender=Message,
+                  dispatch_uid="fire_message_sent_signal")
