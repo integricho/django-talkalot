@@ -178,7 +178,7 @@ class Message(models.Model):
     conversation = models.ForeignKey('Conversation', related_name='messages')
 
     class Meta:
-        ordering = ['-sent_at']
+        ordering = ['-sent_at', '-id']
 
     def __str__(self):
         return "{0} - {1}".format(self.sender.username, self.sent_at)
