@@ -107,6 +107,38 @@ class ConversationTestCase(BaseMessagingTestCase):
 
     @setup_users
     @setup_conversations
+    def test_containing_participant(self):
+        # test for friend0
+        u0 = self.users['friend0']
+
+        conversations = Conversation.objects.containing_participant(u0)
+
+        self.assertEqual(len(conversations), 2)
+        for conv in conversations:
+            self.assertIn(conv.pk, [self.conv1.pk, self.conv4.pk])
+
+        # test for friend1
+        u1 = self.users['friend1']
+
+        conversations = Conversation.objects.containing_participant(u1)
+
+        self.assertEqual(len(conversations), 3)
+        for conv in conversations:
+            self.assertIn(conv.pk, [self.conv1.pk,
+                                    self.conv3.pk,
+                                    self.conv4.pk])
+
+        # test for friend2
+        u2 = self.users['friend2']
+
+        conversations = Conversation.objects.containing_participant(u2)
+
+        self.assertEqual(len(conversations), 1)
+        for conv in conversations:
+            self.assertIn(conv.pk, [self.conv1.pk, self.conv3.pk])
+
+    @setup_users
+    @setup_conversations
     def test_conversation_exists(self):
         participants = [self.users['friend0'], self.users['friend1']]
         conversations = Conversation.objects.for_participants(participants)

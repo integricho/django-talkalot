@@ -37,6 +37,10 @@ class ConversationManager(models.Manager):
         cache.set(key, qs)
         return qs
 
+    def containing_participant(self, participant):
+        """Query conversations containing the specified participant."""
+        return self.all().filter(participations__user=participant)
+
 
 class ParticipationManager(models.Manager):
 
