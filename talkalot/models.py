@@ -41,7 +41,7 @@ class Participation(models.Model):
     objects = ParticipationManager()
 
     class Meta:
-        ordering = ['-read_at', 'conversation']
+        ordering = ['conversation']
         unique_together = ('conversation', 'user')
 
     def __str__(self):
