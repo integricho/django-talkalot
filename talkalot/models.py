@@ -16,8 +16,6 @@ from django.utils.timezone import now
 from .exceptions import MessagingPermissionDenied
 from .managers import ConversationManager, ParticipationManager
 from .settings import (PRIVATE_CONVERSATION_MEMBER_COUNT,
-                       INBOX_CACHE_KEY_PATTERN,
-                       UNREAD_CACHE_KEY_PATTERN,
                        CONVERSATION_CACHE_KEY_PATTERN)
 from .signals import message_sent
 from .utils import is_date_greater
@@ -153,16 +151,6 @@ class Conversation(models.Model):
         participants in the conversation, it is not private."""
         return (self.participations.count() ==
                 PRIVATE_CONVERSATION_MEMBER_COUNT)
-
-    def get_messages(self):
-        key = CONVERSATION_CACHE_KEY_PATTERN.format(self.pk)
-        messages = cache.get(key)
-
-        if not messages:
-            messages = self.messages.all()
-            cache.set(key, messages)
-
-        return messages
 
     @classmethod
     def start(cls, creator, participants):
@@ -320,30 +308,6 @@ class Message(models.Model):
         return cls.__send_to_users(body, sender, recipients)
 
 
-def clear_cached_inbox_of_participant(sender, instance, **kwargs):
-    """When a participation is changed, either revoked or reinstated, the inbox
-    of the participant shall be invalidated, to reflect the current list of
-    active conversations."""
-    inbox_key = INBOX_CACHE_KEY_PATTERN.format(instance.user.pk)
-    cache.delete(inbox_key)
-    # unread is a subset of inbox, so it must be invalidated as well
-    unread_key = UNREAD_CACHE_KEY_PATTERN.format(instance.user.pk)
-    cache.delete(unread_key)
-
-
-def clear_cached_inbox_of_all_participants(sender, instance, **kwargs):
-    """When a message is sent, the cached inboxes of all the participants of
-    the conversation where the message is sent shall be invalidated as the lead
-    message has changed, and the order of the conversations in their inboxes
-    will be different."""
-    for participation in instance.conversation.participations.all():
-        inbox_key = INBOX_CACHE_KEY_PATTERN.format(participation.user.pk)
-        cache.delete(inbox_key)
-        # unread is a subset of inbox, so it must be invalidated as well
-        unread_key = UNREAD_CACHE_KEY_PATTERN.format(participation.user.pk)
-        cache.delete(unread_key)
-
-
 def clear_conversation_cache(sender, instance, **kwargs):
     """When a message is sent, the cached conversation (all of it's messages)
     shall be invalidated."""
@@ -354,16 +318,6 @@ def clear_conversation_cache(sender, instance, **kwargs):
 def fire_message_sent_signal(sender, instance, created, **kwargs):
     if created:
         message_sent.send(sender=sender, instance=instance)
-
-
-post_save.connect(clear_cached_inbox_of_participant,
-                  sender=Participation,
-                  dispatch_uid="clear_cached_inbox_of_participant")
-
-
-post_save.connect(clear_cached_inbox_of_all_participants,
-                  sender=Message,
-                  dispatch_uid="clear_cached_inbox_of_all_participants")
 
 
 post_save.connect(clear_conversation_cache,
